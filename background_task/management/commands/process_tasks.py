@@ -1,6 +1,5 @@
 from django.core.management.base import BaseCommand
 import time
-from optparse import make_option
 import logging
 import sys
 
@@ -10,42 +9,47 @@ class Command(BaseCommand):
     LOG_LEVELS = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
     
     help = 'Run tasks that are scheduled to run on the queue'
-    option_list = BaseCommand.option_list + (
-            make_option('--duration',
-                action='store',
-                dest='duration',
-                type='int',
-                default=0,
-                help='Run task for this many seconds (0 or less to run forever) - default is 0'),
-            make_option('--sleep',
-                action='store',
-                dest='sleep',
-                type='float',
-                default=5.0,
-                help='Sleep for this many seconds before checking for new tasks (if none were found) - default is 5'),
-            make_option('--queue',
-                action='store',
-                dest='queue',
-                help='Only process tasks on this named queue'),
-            make_option('--log-file',
-                action='store',
-                dest='log_file',
-                help='Log file destination'),
-            make_option('--log-std',
-                action='store_true',
-                dest='log_std',
-                help='Redirect stdout and stderr to the logging system'),            
-            make_option('--log-level',
-                action='store',
-                type='choice',
-                choices=LOG_LEVELS,
-                dest='log_level',
-                help='Set logging level (%s)' % ', '.join(LOG_LEVELS)),
-            )
 
     def __init__(self, *args, **kwargs):
         super(Command, self).__init__(*args, **kwargs)
         self._tasks = tasks
+
+
+    def add_arguments(self, parser):
+        parser.add_argument('--duration',
+            action='store',
+            dest='duration',
+            type=int,
+            default=0,
+            help='Run task for this many seconds (0 or less to run forever) - default is 0')
+
+        parser.add_argument('--sleep',
+            action='store',
+            dest='sleep',
+            type=float,
+            default=5.0,
+            help='Sleep for this many seconds before checking for new tasks (if none were found) - default is 5')
+
+        parser.add_argument('--queue',
+            action='store',
+            dest='queue',
+            help='Only process tasks on this named queue')
+
+        parser.add_argument('--log-file',
+            action='store',
+            dest='log_file',
+            help='Log file destination')
+
+        parser.add_argument('--log-std',
+            action='store_true',
+            dest='log_std',
+            help='Redirect stdout and stderr to the logging system')
+
+        parser.add_argument('--log-level',
+            action='store',
+            choices=self.LOG_LEVELS,
+            dest='log_level',
+            help='Set logging level (%s)' % ', '.join(self.LOG_LEVELS))
 
     
     def _configure_logging(self, log_level, log_file, log_std):
