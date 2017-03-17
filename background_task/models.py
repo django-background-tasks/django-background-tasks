@@ -221,7 +221,7 @@ class Task(models.Model):
         """
         try:
             # won't kill the process. kill is a bad named system call
-            os.kill(self.locked_by, 0)
+            os.kill(int(self.locked_by), 0)
             return True
         except:
             return False
