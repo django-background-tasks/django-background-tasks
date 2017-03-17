@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import os
+
 from compat import python_2_unicode_compatible
 from compat.models import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -92,6 +94,25 @@ class CompletedTask(models.Model):
     creator = GenericForeignKey('creator_content_type', 'creator_object_id')
 
     objects = CompletedTaskQuerySet.as_manager()
+
+    def locked_by_pid_running(self):
+        """
+        Check if the locked_by process is still running.
+        """
+        try:
+            # won't kill the process. kill is a bad named system call
+            os.kill(self.locked_by, 0)
+            return True
+        except:
+            return False
+    locked_by_pid_running.boolean = True
+
+    def has_error(self):
+        """
+        Check if the last_error field is empty.
+        """
+        return bool(self.last_error)
+    has_error.boolean = True
 
     def __str__(self):
         return u'{} - {}'.format(

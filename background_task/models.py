@@ -5,6 +5,7 @@ import django
 import inspect
 import json
 import logging
+import os
 import traceback
 
 from compat import python_2_unicode_compatible
@@ -213,6 +214,25 @@ class Task(models.Model):
     creator = GenericForeignKey('creator_content_type', 'creator_object_id')
 
     objects = TaskManager()
+
+    def locked_by_pid_running(self):
+        """
+        Check if the locked_by process is still running.
+        """
+        try:
+            # won't kill the process. kill is a bad named system call
+            os.kill(self.locked_by, 0)
+            return True
+        except:
+            return False
+    locked_by_pid_running.boolean = True
+
+    def has_error(self):
+        """
+        Check if the last_error field is empty.
+        """
+        return bool(self.last_error)
+    has_error.boolean = True
 
     def params(self):
         args, kwargs = json.loads(self.task_params)
