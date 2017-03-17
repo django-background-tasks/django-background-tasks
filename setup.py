@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 import codecs
 
-version = __import__('background_task').__version__ + "-post3"
+version = __import__('background_task').__version__ + "-post4"
 
 classifiers = [c for c in open('classifiers').read().splitlines() if '#' not in c]
 
