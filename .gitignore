@@ -70,3 +70,4 @@ docs/_build/
 target/
 
 test_db
+.idea
