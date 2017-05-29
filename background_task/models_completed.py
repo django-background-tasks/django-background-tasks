@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 import os
 
-from compat import python_2_unicode_compatible
 from compat.models import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
 from django.db import models
 from django.utils import timezone
+from django.utils.six import python_2_unicode_compatible
 
 from background_task.models import Task
 

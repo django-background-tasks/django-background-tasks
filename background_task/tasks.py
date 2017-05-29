@@ -2,15 +2,15 @@
 from __future__ import unicode_literals
 
 from datetime import datetime, timedelta
+from importlib import import_module
 from multiprocessing.pool import ThreadPool
 import logging
 import os
 import sys
 
 from compat import atomic
-from compat import import_module
 from django.utils import timezone
-from django.utils.encoding import python_2_unicode_compatible
+from django.utils.six import python_2_unicode_compatible
 
 from background_task.exceptions import BackgroundTaskError
 from background_task.models import Task

@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
 from datetime import timedelta
 from hashlib import sha1
-import django
-import inspect
 import json
 import logging
 import os
 import traceback
 
-from compat import python_2_unicode_compatible
 from compat import StringIO
 from compat.models import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.six import python_2_unicode_compatible
 
 from background_task.settings import app_settings
 from background_task.signals import task_failed, task_rescheduled
@@ -25,44 +23,6 @@ logger = logging.getLogger(__name__)
 
 # inspired by http://github.com/tobi/delayed_job
 #
-
-# Django 1.6 renamed Manager's get_query_set to get_queryset, and the old
-# function will be removed entirely in 1.8. We work back to 1.4, so use a
-# metaclass to not worry about it.
-# from https://github.com/mysociety/mapit/blob/master/mapit/djangopatch.py#L14-L42
-
-try:
-    from django.utils import six
-except ImportError:  # Django < 1.4.2
-    import six
-
-
-if django.get_version() < '1.6':
-    class GetQuerySetMetaclass(type):
-        def __new__(cls, name, bases, attrs):
-            new_class = super(GetQuerySetMetaclass, cls).__new__(cls, name, bases, attrs)
-
-            old_method_name = 'get_query_set'
-            new_method_name = 'get_queryset'
-            for base in inspect.getmro(new_class):
-                old_method = base.__dict__.get(old_method_name)
-                new_method = base.__dict__.get(new_method_name)
-
-                if not new_method and old_method:
-                    setattr(base, new_method_name, old_method)
-                if not old_method and new_method:
-                    setattr(base, old_method_name, new_method)
-
-            return new_class
-elif django.get_version() < '1.8':
-    # Nothing to do, make an empty metaclass
-    from django.db.models.manager import RenameManagerMethods
-
-    class GetQuerySetMetaclass(RenameManagerMethods):
-        pass
-else:
-    class GetQuerySetMetaclass(type):
-        pass
 
 
 class TaskQuerySet(models.QuerySet):
@@ -78,7 +38,7 @@ class TaskQuerySet(models.QuerySet):
         )
 
 
-class TaskManager(six.with_metaclass(GetQuerySetMetaclass, models.Manager)):
+class TaskManager(models.Manager):
 
     def get_queryset(self):
         return TaskQuerySet(self.model, using=self._db)
