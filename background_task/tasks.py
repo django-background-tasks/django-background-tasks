@@ -18,7 +18,6 @@ from background_task.settings import app_settings
 from background_task import signals
 
 logger = logging.getLogger(__name__)
-_thread_pool = ThreadPool(processes=app_settings.BACKGROUND_TASK_ASYNC_THREADS)
 
 
 def bg_runner(proxy_task, task=None, *args, **kwargs):
@@ -62,12 +61,32 @@ def bg_runner(proxy_task, task=None, *args, **kwargs):
     signals.task_finished.send(Task)
 
 
+class PoolRunner:
+    def __init__(self, bg_runner, num_processes):
+        self._bg_runner = bg_runner
+        self._num_processes = num_processes
+
+    _pool_instance = None
+
+    @property
+    def _pool(self):
+        if not self._pool_instance:
+            self._pool_instance = ThreadPool(processes=self._num_processes)
+        return self._pool_instance
+
+    def run(self, proxy_task, task=None, *args, **kwargs):
+        self._pool.apply_async(func=self._bg_runner, args=(proxy_task, task) + tuple(args), kwds=kwargs)
+
+    __call__ = run
+
+
 class Tasks(object):
     def __init__(self):
         self._tasks = {}
         self._runner = DBTaskRunner()
         self._task_proxy_class = TaskProxy
         self._bg_runner = bg_runner
+        self._pool_runner = PoolRunner(bg_runner, app_settings.BACKGROUND_TASK_ASYNC_THREADS)
 
     def background(self, name=None, schedule=None, queue=None):
         '''
@@ -107,7 +126,7 @@ class Tasks(object):
             task = None
         proxy_task = self._tasks[task_name]
         if app_settings.BACKGROUND_TASK_RUN_ASYNC:
-            _thread_pool.apply_async(func=self._bg_runner, args=(proxy_task, task) + tuple(args), kwds=kwargs)
+            self._pool_runner(proxy_task, task, *args, **kwargs)
         else:
             self._bg_runner(proxy_task, task, *args, **kwargs)
 
