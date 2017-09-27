@@ -54,7 +54,7 @@ class CompletedTaskQuerySet(models.QuerySet):
 @python_2_unicode_compatible
 class CompletedTask(models.Model):
     # the "name" of the task/function to be run
-    task_name = models.CharField(max_length=255, db_index=True)
+    task_name = models.CharField(max_length=190, db_index=True)
     # the json encoded parameters to pass to the task
     task_params = models.TextField()
     # a sha1 hash of the name and params, to lookup already scheduled tasks
@@ -71,7 +71,7 @@ class CompletedTask(models.Model):
     repeat_until = models.DateTimeField(null=True, blank=True)
 
     # the "name" of the queue this is to be run on
-    queue = models.CharField(max_length=255, db_index=True,
+    queue = models.CharField(max_length=190, db_index=True,
                              null=True, blank=True)
 
     # how many times the task has been tried
