@@ -288,6 +288,8 @@ class Task(models.Model):
 
         args, kwargs = self.params()
         new_run_at = self.run_at + timedelta(seconds=self.repeat)
+        while new_run_at < timezone.now():
+            new_run_at += timedelta(seconds=self.repeat)
 
         new_task = TaskManager().new_task(
             task_name=self.task_name,

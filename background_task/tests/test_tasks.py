@@ -711,6 +711,29 @@ class RepetitionTestCase(TransactionTestCase):
         self.assertEqual((new_task.run_at - old_task.run_at), timedelta(hours=1))
         self.assertEqual(new_task.repeat_until, old_task.repeat_until)
 
+    def test_repetition_in_future(self):
+        repeat_until = timezone.now() + timedelta(weeks=1)
+        old_task = self.my_task(
+            'test-repetition',
+            repeat=Task.HOURLY,
+            repeat_until=repeat_until,
+            verbose_name="Test repetition in future",
+        )
+        old_task.run_at = timezone.now() - timedelta(weeks=1)  # task is one week old
+        old_task.save()
+        tasks.run_next_task()
+        time.sleep(0.5)
+
+        self.assertEqual(Task.objects.filter(repeat=Task.HOURLY).count(), 1)
+        new_task = Task.objects.get(repeat=Task.HOURLY)
+        self.assertNotEqual(new_task.id, old_task.id)
+        # new task skipped exactly one week of downtime in the past, keeps period
+        self.assertEqual((new_task.run_at - old_task.run_at), timedelta(weeks=1, hours=1))
+        # new task will be executed in the future
+        self.assertTrue(new_task.run_at > timezone.now())
+        # new task will be executed in less than one hour
+        self.assertTrue((new_task.run_at - timezone.now()) <= timedelta(hours=1))
+
 
 class QuerySetManagerTestCase(TransactionTestCase):
 
