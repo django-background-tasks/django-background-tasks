@@ -9,6 +9,7 @@ from django.test.testcases import TransactionTestCase
 from django.conf import settings
 from django.utils import timezone
 
+from background_task.exceptions import InvalidTaskError
 from background_task.tasks import tasks, TaskSchedule, TaskProxy
 from background_task.models import Task
 from background_task.models_completed import CompletedTask
@@ -634,6 +635,28 @@ class MaxAttemptsTestCase(TransactionTestCase):
         run_next_task()
         self.assertEqual(Task.objects.count(), 2)
         self.assertEqual(CompletedTask.objects.count(), 0)
+
+
+class InvalidTaskTestCase(TransactionTestCase):
+
+    class SomeInvalidTaskError(InvalidTaskError):
+        pass
+
+    def setUp(self):
+        @tasks.background(name='failing task')
+        def failing_task():
+            raise self.SomeInvalidTaskError("invalid")
+
+        self.failing_task = failing_task
+        self.task1 = self.failing_task()
+        self.task1_id = self.task1.id
+
+    @override_settings(MAX_ATTEMPTS=2)
+    def test_invalid_task(self):
+        self.assertEqual(settings.MAX_ATTEMPTS, 2)
+        run_next_task()
+        self.assertEqual(Task.objects.count(), 0)
+        self.assertEqual(CompletedTask.objects.count(), 1)
 
 
 class ArgumentsWithDictTestCase(TransactionTestCase):

@@ -14,6 +14,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.six import python_2_unicode_compatible
 
+from background_task.exceptions import InvalidTaskError
 from background_task.settings import app_settings
 from background_task.signals import task_failed, task_rescheduled
 
@@ -234,7 +235,7 @@ class Task(models.Model):
         '''
         self.last_error = self._extract_error(type, err, traceback)
         self.increment_attempts()
-        if self.has_reached_max_attempts():
+        if self.has_reached_max_attempts() or isinstance(err, InvalidTaskError):
             self.failed_at = timezone.now()
             logger.warning('Marking task %s as failed', self)
             completed = self.create_completed_task()
