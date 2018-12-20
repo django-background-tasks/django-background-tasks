@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
-from background_task.models_completed import CompletedTask
 
-from background_task.models import Task
+from background_task.models import Task, CompletedTask
+
 
 def inc_priority(modeladmin, request, queryset):
     for obj in queryset:

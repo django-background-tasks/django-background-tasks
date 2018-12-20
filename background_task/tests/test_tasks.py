@@ -12,8 +12,7 @@ from django.utils import timezone
 
 from background_task.exceptions import InvalidTaskError
 from background_task.tasks import tasks, TaskSchedule, TaskProxy
-from background_task.models import Task
-from background_task.models_completed import CompletedTask
+from background_task.models import Task, CompletedTask
 from background_task import background
 from background_task.settings import app_settings
 
