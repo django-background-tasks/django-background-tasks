@@ -273,6 +273,7 @@ class Task(models.Model):
             task_params=self.task_params,
             task_hash=self.task_hash,
             priority=self.priority,
+            original_run_at=self.run_at,
             run_at=timezone.now(),
             queue=self.queue,
             attempts=self.attempts,

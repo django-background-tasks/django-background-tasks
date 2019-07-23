@@ -65,6 +65,7 @@ class CompletedTask(models.Model):
     # what priority the task has
     priority = models.IntegerField(default=0, db_index=True)
     # when the task should be run
+    original_run_at = models.DateTimeField(db_index=True, null=True, blank=True)
     run_at = models.DateTimeField(db_index=True)
 
     repeat = models.BigIntegerField(choices=Task.REPEAT_CHOICES, default=Task.NEVER)
