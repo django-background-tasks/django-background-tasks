@@ -14,6 +14,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.six import python_2_unicode_compatible
 
+from background_task.utils import add_months_to_datetime
 from background_task.exceptions import InvalidTaskError
 from background_task.settings import app_settings
 from background_task.signals import task_failed
@@ -88,7 +89,7 @@ class TaskManager(models.Manager):
 
     def new_task(self, task_name, args=None, kwargs=None,
                  run_at=None, priority=0, queue=None, verbose_name=None,
-                 creator=None, repeat=None, repeat_until=None,
+                 creator=None, repeat=None, repeat_units=None, repeat_until=None,
                  remove_existing_tasks=False):
         """
         If `remove_existing_tasks` is True, all unlocked tasks with the identical task hash will be removed.
@@ -112,6 +113,7 @@ class TaskManager(models.Manager):
                     verbose_name=verbose_name,
                     creator=creator,
                     repeat=repeat or Task.NEVER,
+                    repeat_units=repeat_units or Task.Units.SECONDS,
                     repeat_until=repeat_until,
                     )
 
@@ -160,7 +162,28 @@ class Task(models.Model):
         (EVERY_4_WEEKS, 'every 4 weeks'),
         (NEVER, 'never'),
     )
+
+    class Units:
+        SECONDS = 'seconds'
+        MINUTES = 'minutes'
+        HOURS = 'hours'
+        DAYS = 'days'
+        WEEKS = 'weeks'
+        MONTHS = 'months'
+        YEARS = 'years'
+
+        CHOICES = (
+            (SECONDS, 'Seconds'),
+            (MINUTES, 'Minutes'),
+            (HOURS, 'Hours'),
+            (DAYS, 'Days'),
+            (WEEKS, 'Weeks'),
+            (MONTHS, 'Months'),
+            (YEARS, 'Years')
+        )
+
     repeat = models.BigIntegerField(choices=REPEAT_CHOICES, default=NEVER)
+    repeat_units = models.CharField(max_length=256, choices=Units.CHOICES, default=Units.SECONDS)
     repeat_until = models.DateTimeField(null=True, blank=True)
 
     # the "name" of the queue this is to be run on
@@ -283,10 +306,41 @@ class Task(models.Model):
             verbose_name=self.verbose_name,
             creator=self.creator,
             repeat=self.repeat,
+            repeat_units=self.repeat_units,
             repeat_until=self.repeat_until,
         )
         completed_task.save()
         return completed_task
+
+    @property
+    def time_until_repeat(self):
+        '''
+        Returns a timedelta until the next time that this Task should run.
+
+        Note: This does not account for whether or not the Task _should_ repeat or not
+        '''
+        delta_fns = {
+            self.Units.SECONDS: lambda val: timedelta(seconds=val),
+            self.Units.MINUTES: lambda val: timedelta(minutes=val),
+            self.Units.HOURS:   lambda val: timedelta(hours=val),
+            self.Units.DAYS:    lambda val: timedelta(days=val),
+            self.Units.WEEKS:   lambda val: timedelta(weeks=val),
+            self.Units.MONTHS:  lambda val: (
+                add_months_to_datetime(self.run_at, val) - self.run_at
+            ),
+            self.Units.YEARS:   lambda val: (
+                add_months_to_datetime(self.run_at, val * 12) - self.run_at
+            )
+        }
+
+        delta_fn = delta_fns.get(self.repeat_units)
+
+        if not delta_fn:
+            logger.warning('Task %s has unknown repeat unit %s, defaulting to "seconds"',
+                           self, self.repeat_units)
+            delta_fn = delta_fns[self.Units.SECONDS]
+
+        return delta_fn(self.repeat)
 
     def create_repetition(self):
         """
@@ -300,7 +354,7 @@ class Task(models.Model):
             return None
 
         args, kwargs = self.params()
-        new_run_at = self.run_at + timedelta(seconds=self.repeat)
+        new_run_at = self.run_at + self.time_until_repeat
         while new_run_at < timezone.now():
             new_run_at += timedelta(seconds=self.repeat)
 
@@ -314,6 +368,7 @@ class Task(models.Model):
             verbose_name=self.verbose_name,
             creator=self.creator,
             repeat=self.repeat,
+            repeat_units=self.repeat_units,
             repeat_until=self.repeat_until,
         )
         new_task.save()

@@ -107,11 +107,15 @@ Repeating tasks can be initialized like this:
 
 .. code-block:: python
 
-    notify_user(user.id, repeat=<number of seconds>, repeat_until=<datetime or None>)
+    notify_user(user.id, repeat=<number of seconds>, repeat_units=<Task.Units.XYZ or None>, repeat_until=<datetime or None>)
 
 When a repeating task completes successfully, a new Task with an offset of ``repeat`` is scheduled. On the other hand, if a repeating task fails and is not restarted, the repetition chain is stopped.
 
-``repeat`` is given in seconds. The following constants are provided: ``Task.NEVER`` (default), ``Task.HOURLY``, ``Task.DAILY``, ``Task.WEEKLY``, ``Task.EVERY_2_WEEKS``, ``Task.EVERY_4_WEEKS``.
+By default, ``repeat`` is given in seconds, however this can be changed through the use of the ``repeat_units`` property. Valid values for ``repeat_units`` include: ``Task.Units.SECONDS``, ``Task.Units.HOURS``, ``Task.Units.MONTHS``, etc. See the :py:class:`background_task.models.Task.Units` class for all possible options.
+
+.. warning::
+   The constants provided by the ``Task`` object (``Task.NEVER``, ``Task.HOURLY``, ``Task.DAILY``, ``Task.WEEKLY``, ``Task.EVERY_2_WEEKS``, ``Task.EVERY_4_WEEKS``) are represented in *seconds* and so should not be used with different values of ``repeat_units``.
+
 
 The time offset is computed from the initially scheduled time of the original task, not the time the task was actually executed. If the process command is interrupted, the interval between the original task and its repetition may be shorter than ``repeat``.
 

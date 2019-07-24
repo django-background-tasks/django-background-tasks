@@ -216,11 +216,23 @@ class DBTaskRunner(object):
     def schedule(self, task_name, args, kwargs, run_at=None,
                  priority=0, action=TaskSchedule.SCHEDULE, queue=None,
                  verbose_name=None, creator=None,
-                 repeat=None, repeat_until=None, remove_existing_tasks=False):
+                 repeat=None, repeat_units=None, repeat_until=None,
+                 remove_existing_tasks=False):
         '''Simply create a task object in the database'''
-        task = Task.objects.new_task(task_name, args, kwargs, run_at, priority,
-                                     queue, verbose_name, creator, repeat,
-                                     repeat_until, remove_existing_tasks)
+        task = Task.objects.new_task(
+            task_name=task_name,
+            args=args,
+            kwargs=kwargs,
+            run_at=run_at,
+            priority=priority,
+            queue=queue,
+            verbose_name=verbose_name,
+            creator=creator,
+            repeat=repeat,
+            repeat_units=repeat_units,
+            repeat_until=repeat_until,
+            remove_existing_tasks=remove_existing_tasks,
+        )
         if action != TaskSchedule.SCHEDULE:
             task_hash = task.task_hash
             now = timezone.now()
@@ -287,13 +299,25 @@ class TaskProxy(object):
         verbose_name = kwargs.pop('verbose_name', None)
         creator = kwargs.pop('creator', None)
         repeat = kwargs.pop('repeat', None)
+        repeat_units = kwargs.pop('repeat_units', None)
         repeat_until = kwargs.pop('repeat_until', None)
         remove_existing_tasks =  kwargs.pop('remove_existing_tasks', self.remove_existing_tasks)
 
-        return self.runner.schedule(self.name, args, kwargs, run_at, priority,
-                                    action, queue, verbose_name, creator,
-                                    repeat, repeat_until,
-                                    remove_existing_tasks)
+        return self.runner.schedule(
+            task_name=self.name,
+            args=args,
+            kwargs=kwargs,
+            run_at=run_at,
+            priority=priority,
+            action=action,
+            queue=queue,
+            verbose_name=verbose_name,
+            creator=creator,
+            repeat=repeat,
+            repeat_units=repeat_units,
+            repeat_until=repeat_until,
+            remove_existing_tasks=remove_existing_tasks
+        )
 
     def __str__(self):
         return 'TaskProxy(%s)' % self.name

@@ -735,6 +735,131 @@ class RepetitionTestCase(TransactionTestCase):
         self.assertEqual((new_task.run_at - old_task.run_at), timedelta(hours=1))
         self.assertEqual(new_task.repeat_until, old_task.repeat_until)
 
+
+    def test_different_repeat_units(self):
+        """Tests that different repeat units with same repeat rate have different results"""
+        repeat_rate = 1
+        now = timezone.now()
+        tasks_to_compare = [
+            self.my_task(
+                'test-repeat-seconds',
+                foo='bar',
+                schedule=now,
+                repeat=repeat_rate,
+                repeat_units=Task.Units.SECONDS,
+                verbose_name="Test repeat with seconds"
+            ),
+            self.my_task(
+                'test-repeat-months',
+                foo='bar',
+                schedule=now,
+                repeat=repeat_rate,
+                repeat_units=Task.Units.MONTHS,
+                verbose_name="Test repeat with months"
+            ),
+            self.my_task(
+                'test-repeat-years',
+                foo='bar',
+                schedule=now,
+                repeat=repeat_rate,
+                repeat_units=Task.Units.YEARS,
+                verbose_name="Test repeat with years"
+            )
+        ]
+
+        for _ in tasks_to_compare:
+            tasks.run_next_task()
+
+        time.sleep(0.5)
+
+        new_seconds_task = Task.objects.get(repeat_units=Task.Units.SECONDS)
+        new_months_task = Task.objects.get(repeat_units=Task.Units.MONTHS)
+        new_years_task = Task.objects.get(repeat_units=Task.Units.YEARS)
+
+        self.assertEqual(new_years_task.run_at.year, new_seconds_task.run_at.year + 1)
+        self.assertEqual(new_months_task.run_at.month, new_seconds_task.run_at.month + 1)
+
+    def test_repeat_unit_equality(self):
+        """Tests the equivalency of different repeat units (eg. 1 minute == 60 seconds)"""
+        now = timezone.now()
+        tasks_to_compare = [
+            self.my_task(
+                'test-repeat-seconds',
+                foo='bar',
+                schedule=now,
+                repeat=60 * 60 * 24 * 7,
+                repeat_units=Task.Units.SECONDS,
+                verbose_name="Test repeat with seconds"
+            ),
+            self.my_task(
+                'test-repeat-minutes',
+                foo='bar',
+                schedule=now,
+                repeat=60 * 24 * 7,
+                repeat_units=Task.Units.MINUTES,
+                verbose_name="Test repeat with minutes"
+            ),
+            self.my_task(
+                'test-repeat-hours',
+                foo='bar',
+                schedule=now,
+                repeat=24 * 7,
+                repeat_units=Task.Units.HOURS,
+                verbose_name="Test repeat with hours"
+            ),
+            self.my_task(
+                'test-repeat-days',
+                foo='bar',
+                schedule=now,
+                repeat=7,
+                repeat_units=Task.Units.DAYS,
+                verbose_name="Test repeat with days"
+            ),
+            self.my_task(
+                'test-repeat-weeks',
+                foo='bar',
+                schedule=now,
+                repeat=1,
+                repeat_units=Task.Units.WEEKS,
+                verbose_name="Test repeat with weeks"
+            )
+        ]
+
+        for _ in tasks_to_compare:
+            tasks.run_next_task()
+
+        time.sleep(0.5)
+
+        new_tasks = Task.objects.all()
+
+        for task in new_tasks:
+            self.assertEqual(task.run_at, new_tasks[0].run_at)
+
+    def test_repeat_at_end_of_month(self):
+        """Test to ensure that the 'month' unit will not schedule for a nonexistant day
+
+        If a Task is scheduled for a month with more days than the following month (eg.
+        January 31st), make sure that we don't naively schedule the repetition for a
+        non-existant day in the next month (eg. February 31st).
+        """
+        end_of_month_dt = timezone.now().replace(month=1, day=31)
+        with patch("django.utils.timezone.now", lambda: end_of_month_dt) as mocked:
+            task = self.my_task(
+                'test-end-of-month-task',
+                foo='bar',
+                schedule=timezone.now() - timedelta(seconds=1),
+                repeat=1,
+                repeat_units=Task.Units.MONTHS,
+                verbose_name="Test end of month case"
+            )
+
+            tasks.run_next_task()
+            time.sleep(0.5)
+
+            new_task = Task.objects.first()
+            self.assertEqual(new_task.run_at.month, end_of_month_dt.month + 1)
+            self.assertNotEqual(new_task.run_at.day, 31)
+
     def test_repetition_in_future(self):
         repeat_until = timezone.now() + timedelta(weeks=1)
         old_task = self.my_task(
