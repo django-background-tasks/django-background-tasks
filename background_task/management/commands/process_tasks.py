@@ -1,16 +1,11 @@
 # -*- coding: utf-8 -*-
 import logging
-import random
 import sys
-import time
 
 from django import VERSION
 from django.core.management.base import BaseCommand
 
-from background_task.tasks import tasks, autodiscover
-from background_task.utils import SignalManager
-from compat import close_connection
-
+from background_task.tasks import process_tasks, tasks
 
 logger = logging.getLogger(__name__)
 
@@ -77,25 +72,8 @@ class Command(BaseCommand):
         sleep = options.pop('sleep', 5.0)
         queue = options.pop('queue', None)
         log_std = options.pop('log_std', False)
-        sig_manager = SignalManager()
 
         if log_std:
             _configure_log_std()
 
-        autodiscover()
-
-        start_time = time.time()
-
-        while (duration <= 0) or (time.time() - start_time) <= duration:
-            if sig_manager.kill_now:
-                # shutting down gracefully
-                break
-
-            if not self._tasks.run_next_task(queue):
-                # there were no tasks in the queue, let's recover.
-                close_connection()
-                logger.debug('waiting for tasks')
-                time.sleep(sleep)
-            else:
-                # there were some tasks to process, let's check if there is more work to do after a little break.
-                time.sleep(random.uniform(sig_manager.time_to_wait[0], sig_manager.time_to_wait[1]))
+        process_tasks(queue, sleep, duration)
