@@ -1,21 +1,25 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import logging
+import os
+import random
+import sys
+import time
 from datetime import datetime, timedelta
 from importlib import import_module
 from multiprocessing.pool import ThreadPool
-import logging
-import os
-import sys
 
+from compat import close_connection
 from django.db.utils import OperationalError
 from django.utils import timezone
 from six import python_2_unicode_compatible
 
+from background_task import signals
 from background_task.exceptions import BackgroundTaskError
 from background_task.models import Task
 from background_task.settings import app_settings
-from background_task import signals
+from background_task.utils import SignalManager
 
 logger = logging.getLogger(__name__)
 
@@ -319,3 +323,29 @@ def autodiscover():
             continue
 
         import_module("%s.tasks" % app)
+
+
+def process_tasks(queue=None, sleep=5.0, duration=0):
+    """
+    Run tasks that are scheduled to run on the queue
+
+    :param duration: Run task for this many seconds (0 or less to run forever) - default is 0
+    :param sleep: Sleep for this many seconds before checking for new tasks (if none were found) - default is 5
+    :param queue: Only process tasks on this named queue
+    """
+    sig_manager = SignalManager()
+    autodiscover()
+    start_time = time.time()
+    while (duration <= 0) or (time.time() - start_time) <= duration:
+        if sig_manager.kill_now:
+            # shutting down gracefully
+            break
+
+        if not tasks.run_next_task(queue):
+            # there were no tasks in the queue, let's recover.
+            close_connection()
+            logger.debug('waiting for tasks')
+            time.sleep(sleep)
+        else:
+            # there were some tasks to process, let's check if there is more work to do after a little break.
+            time.sleep(random.uniform(sig_manager.time_to_wait[0], sig_manager.time_to_wait[1]))
