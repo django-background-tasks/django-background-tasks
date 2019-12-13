@@ -34,3 +34,12 @@ class SignalManager(object):
 
     def slow_down(self, signum, frame):
         self.time_to_wait = TTW_SLOW
+
+
+class SignalManagerDev(SignalManager):
+
+    def __init__(self):
+        if platform.system() != 'Windows':
+            signal.signal(signal.SIGTSTP, self.exit_gracefully)
+            signal.signal(signal.SIGUSR1, self.speed_up)
+            signal.signal(signal.SIGUSR2, self.slow_down)
