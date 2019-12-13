@@ -9,7 +9,7 @@ from django.core.management.base import BaseCommand
 from django.utils import autoreload
 
 from background_task.tasks import tasks, autodiscover
-from background_task.utils import SignalManager
+from background_task.utils import SignalManager, SignalManagerDev
 from compat import close_connection
 
 
@@ -113,11 +113,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         is_dev = options.get('dev', False)
-        self.sig_manager = SignalManager()
         if is_dev:
+            self.sig_manager = SignalManagerDev()
             reload_func = autoreload.run_with_reloader
             if VERSION < (2, 2):
                 reload_func = autoreload.main
             reload_func(self.run, *args, **options)
         else:
+            self.sig_manager = SignalManager()
             self.run(*args, **options)
