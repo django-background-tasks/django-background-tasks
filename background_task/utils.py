@@ -24,6 +24,9 @@ class SignalManager(object):
             signal.signal(signal.SIGUSR2, self.slow_down)
 
     def exit_gracefully(self, signum, frame):
+        print("[+] Process tasks has got signal ",
+              signal.Signals(signum).name,
+              ", exiting...")
         self.kill_now = True
 
     def speed_up(self, signum, frame):
