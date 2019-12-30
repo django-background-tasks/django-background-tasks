@@ -58,4 +58,9 @@ class AppSettings(object):
             prefix = '-'
         return prefix
 
+    @property
+    def BACKGROUND_TASK_BOOLEAN_AS_TEXT(self):
+        """Control how status booleans are displayed in the admin."""
+        return getattr(settings, 'BACKGROUND_TASK_BOOLEAN_AS_TEXT', False)
+
 app_settings = AppSettings()
