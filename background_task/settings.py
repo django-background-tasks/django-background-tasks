@@ -28,7 +28,8 @@ class AppSettings(object):
         Control the delay between each attempt (expressed in seconds). It can be either:
 
         * an integer;
-        * a callable that receive one argument - the number of attempts done after the current run.
+        * a callable that receives one and only argument - the number of attempts done after the current run - and
+        returns an integer.
 
         Default value: lambda attempts: (attempts ** 4) + 5
         """

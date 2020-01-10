@@ -164,6 +164,30 @@ The ``process_tasks`` management command has the following options:
 
 You can use the ``duration`` option for simple process control, by running the management command via a cron job and setting the duration to the time till cron calls the command again.  This way if the command fails it will get restarted by the cron job later anyway.  It also avoids having to worry about resource/memory leaks too much.  The alternative is to use a grown-up program like supervisord_ to handle this for you.
 
+Task errors
+===========
+
+Tasks are retried if they fail and the error recorded in last_error (and logged).  A task is retried as it may be a temporary issue, such as a transient network problem.  You should probably monitor the task queue to check for tasks that have errors.  After ``MAX_ATTEMPTS`` the task will be marked as failed and will not be rescheduled again.
+
+By default, each time a task is retried it is retried later and later, using an exponential back off, based on the number of attempts:
+
+.. code-block:: python
+
+    (attempts ** 4) + 5
+
+This means that initially the task will be tried again a few seconds later.  After four attempts the task is tried again 261 seconds later (about four minutes).  At twenty five attempts the task will not be tried again for nearly four days!  It is not unheard of for a transient error to last a long time and this behavior is intended to stop tasks that are triggering errors constantly (i.e. due to a coding error) form dominating task processing.
+
+If this behavior does not fit your need, the setting variable ``BACKGROUND_TASK_DELAY_BETWEEN_ATTEMPTS`` allow you to customize the delay (in seconds) between each attempt.  It can be either an integer, or a callable that receives one and only one argument - the number of attempts done after the current run - and returns an integer (still the delay in seconds). For example :
+
+.. code-block:: python
+
+    # wait 15 minutes between attempts.
+    BACKGROUND_TASK_DELAY_BETWEEN_ATTEMPTS = 15*60
+
+    # increase delay by 30 seconds for each new attempt.
+    BACKGROUND_TASK_DELAY_BETWEEN_ATTEMPTS = lambda attempts: attempts*30
+
+
 Settings
 ========
 
@@ -174,17 +198,7 @@ There are a few settings options that can be set in your ``settings.py`` file.
 * ``BACKGROUND_TASK_RUN_ASYNC`` - If ``True``, will run the tasks asynchronous. This means the tasks will be processed in parallel (at the same time) instead of processing one by one (one after the other).
 * ``BACKGROUND_TASK_ASYNC_THREADS`` - Specifies number of concurrent threads. Default is ``multiprocessing.cpu_count()``.
 * ``BACKGROUND_TASK_PRIORITY_ORDERING`` - Control the ordering of tasks in the queue. Default is ``"DESC"`` (tasks with a higher number are processed first). Choose ``"ASC"`` to switch to the "niceness_" ordering. A niceness of −20 is the highest priority and 19 is the lowest priority.
-
-Task errors
-===========
-
-Tasks are retried if they fail and the error recorded in last_error (and logged).  A task is retried as it may be a temporary issue, such as a transient network problem.  However each time a task is retried it is retried later and later, using an exponential back off, based on the number of attempts:
-
-.. code-block:: python
-
-    (attempts ** 4) + 5
-
-This means that initially the task will be tried again a few seconds later.  After four attempts the task is tried again 261 seconds later (about four minutes).  At twenty five attempts the task will not be tried again for nearly four days!  It is not unheard of for a transient error to last a long time and this behavior is intended to stop tasks that are triggering errors constantly (i.e. due to a coding error) form dominating task processing.  You should probably monitor the task queue to check for tasks that have errors.  After ``MAX_ATTEMPTS`` the task will be marked as failed and will not be rescheduled again.
+* ``BACKGROUND_TASK_DELAY_BETWEEN_ATTEMPTS`` - Control the delay between each attempt (expressed in seconds, see section `Task errors`).
 
 Known issues
 ============
