@@ -2,6 +2,7 @@
 import time
 from datetime import timedelta, datetime
 from mock import patch, Mock
+from unittest import skipIf
 
 from django.db.utils import OperationalError
 from django.contrib.auth.models import User
@@ -42,6 +43,7 @@ def mocked_run_next_task(queue=None):
     if app_settings.BACKGROUND_TASK_RUN_ASYNC:
         time.sleep(1)
     return val
+
 
 run_task = mocked_run_task
 run_next_task = mocked_run_next_task
@@ -636,6 +638,105 @@ class MaxAttemptsTestCase(TransactionTestCase):
         run_next_task()
         self.assertEqual(Task.objects.count(), 2)
         self.assertEqual(CompletedTask.objects.count(), 0)
+
+
+class AttemptsDelayTestCase(TransactionTestCase):
+
+    def setUp(self):
+        @tasks.background(name='failing task')
+        def failing_task():
+            raise Exception("error")
+            # return 0 / 0
+        self.failing_task = failing_task
+        self.task = self.failing_task()
+        self.task_id = self.task.id
+
+    @override_settings(MAX_ATTEMPTS=2)
+    def test_default_backoff(self):
+        self.assertEqual(settings.MAX_ATTEMPTS, 2)
+        self.assertEqual(Task.objects.count(), 1)
+        task = Task.objects.first()
+
+        ts_before_run = timezone.now()
+        run_next_task()
+        ts_after_run = timezone.now()
+
+        task.refresh_from_db()
+
+        # Reminder: the default delay between attempts is computed as : (attempts ** 4) + 5 = 6 when attempts is 1.
+        next_run_at_before = ts_before_run + timedelta(seconds=6)
+        next_run_at_after = ts_after_run + timedelta(seconds=6)
+
+        self.assertEqual(Task.objects.count(), 1)
+        self.assertEqual(1, task.attempts)
+        self.assertEqual(CompletedTask.objects.count(), 0)
+        self.assertTrue(next_run_at_before < task.run_at < next_run_at_after)
+
+    @override_settings(MAX_ATTEMPTS=2, BACKGROUND_TASK_DELAY_BETWEEN_ATTEMPTS=10)
+    def test_custom_backoff_as_integer(self):
+        self.assertEqual(settings.MAX_ATTEMPTS, 2)
+        self.assertEqual(settings.BACKGROUND_TASK_DELAY_BETWEEN_ATTEMPTS, 10)
+
+        self.assertEqual(Task.objects.count(), 1)
+        task = Task.objects.first()
+
+        ts_before_run = timezone.now()
+        run_next_task()
+        ts_after_run = timezone.now()
+
+        task.refresh_from_db()
+
+        next_run_at_before = ts_before_run + timedelta(seconds=10)
+        next_run_at_after = ts_after_run + timedelta(seconds=10)
+
+        self.assertEqual(Task.objects.count(), 1)
+        self.assertEqual(1, task.attempts)
+        self.assertEqual(CompletedTask.objects.count(), 0)
+        self.assertTrue(next_run_at_before < task.run_at < next_run_at_after)
+
+    @override_settings(MAX_ATTEMPTS=5, BACKGROUND_TASK_DELAY_BETWEEN_ATTEMPTS=lambda attempts: attempts*30)
+    def test_custom_backoff_as_callable(self):
+        self.assertEqual(settings.MAX_ATTEMPTS, 5)
+
+        self.assertEqual(Task.objects.count(), 1)
+        task = Task.objects.first()
+        task.attempts = 3
+        task.save()
+
+        ts_before_run = timezone.now()
+        run_next_task()
+        ts_after_run = timezone.now()
+
+        task.refresh_from_db()
+
+        next_run_at_before = ts_before_run + timedelta(seconds=4*30)
+        next_run_at_after = ts_after_run + timedelta(seconds=4*30)
+
+        self.assertEqual(Task.objects.count(), 1)
+        self.assertEqual(4, task.attempts)
+        self.assertEqual(CompletedTask.objects.count(), 0)
+        self.assertTrue(next_run_at_before < task.run_at < next_run_at_after)
+
+    @skipIf(settings.BACKGROUND_TASK_RUN_ASYNC, "assertRaises not working when async.")
+    @override_settings(MAX_ATTEMPTS=5, BACKGROUND_TASK_DELAY_BETWEEN_ATTEMPTS='1')
+    def test_invalid_custom_setting_string_instead_of_integer(self):
+        self.assertEqual(settings.MAX_ATTEMPTS, 5)
+        self.assertEqual(settings.BACKGROUND_TASK_DELAY_BETWEEN_ATTEMPTS, '1')
+
+        self.assertEqual(Task.objects.count(), 1)
+
+        with self.assertRaises(AssertionError):
+            run_next_task()
+
+    @skipIf(settings.BACKGROUND_TASK_RUN_ASYNC, "assertRaises not working when async.")
+    @override_settings(MAX_ATTEMPTS=5, BACKGROUND_TASK_DELAY_BETWEEN_ATTEMPTS=lambda x: timedelta(x*30))
+    def test_invalid_custom_setting_callable_returns_timedelta(self):
+        self.assertEqual(settings.MAX_ATTEMPTS, 5)
+
+        self.assertEqual(Task.objects.count(), 1)
+
+        with self.assertRaises(AssertionError):
+            run_next_task()
 
 
 class InvalidTaskTestCase(TransactionTestCase):

@@ -23,6 +23,19 @@ class AppSettings(object):
         return self.MAX_ATTEMPTS
 
     @property
+    def BACKGROUND_TASK_DELAY_BETWEEN_ATTEMPTS(self):
+        """
+        Control the delay between each attempt (expressed in seconds). It can be either:
+
+        * an integer;
+        * a callable that receives one and only argument - the number of attempts done after the current run - and
+        returns an integer.
+
+        Default value: lambda attempts: (attempts ** 4) + 5
+        """
+        return getattr(settings, 'BACKGROUND_TASK_DELAY_BETWEEN_ATTEMPTS', lambda attempts: (attempts ** 4) + 5)
+
+    @property
     def MAX_RUN_TIME(self):
         """Maximum possible task run time, after which tasks will be unlocked and tried again."""
         return getattr(settings, 'MAX_RUN_TIME', 3600)
@@ -57,5 +70,6 @@ class AppSettings(object):
         else:
             prefix = '-'
         return prefix
+
 
 app_settings = AppSettings()

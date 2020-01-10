@@ -240,12 +240,12 @@ class Task(models.Model):
     def is_repeating_task(self):
         return self.repeat > self.NEVER
 
-    def reschedule(self, type, err, traceback):
+    def reschedule(self, _type, err, traceback):
         '''
         Set a new time to run the task in future, or create a CompletedTask and delete the Task
         if it has reached the maximum of allowed attempts
         '''
-        self.last_error = self._extract_error(type, err, traceback)
+        self.last_error = self._extract_error(_type, err, traceback)
         self.increment_attempts()
         if self.has_reached_max_attempts() or isinstance(err, InvalidTaskError):
             self.failed_at = timezone.now()
@@ -254,10 +254,13 @@ class Task(models.Model):
             task_failed.send(sender=self.__class__, task_id=self.id, completed_task=completed)
             self.delete()
         else:
-            backoff = timedelta(seconds=(self.attempts ** 4) + 5)
-            self.run_at = timezone.now() + backoff
-            logger.warning('Rescheduling task %s for %s later at %s', self,
-                backoff, self.run_at)
+            delay_settings = app_settings.BACKGROUND_TASK_DELAY_BETWEEN_ATTEMPTS
+            backoff = delay_settings(self.attempts) if callable(delay_settings) else delay_settings
+            assert isinstance(backoff, int), \
+                "BACKGROUND_TASK_DELAY_BETWEEN_ATTEMPTS must be an integer or a callable that returns an integer. " \
+                "Got %s (%s)." % (backoff, type(backoff).__name__)
+            self.run_at = timezone.now() + timedelta(seconds=backoff)
+            logger.warning('Rescheduling task %s for %s later at %s', self, backoff, self.run_at)
             task_rescheduled.send(sender=self.__class__, task=self)
             self.locked_by = None
             self.locked_at = None
@@ -328,9 +331,6 @@ class Task(models.Model):
 
     class Meta:
         db_table = 'background_task'
-
-
-
 
 
 class CompletedTaskQuerySet(models.QuerySet):
