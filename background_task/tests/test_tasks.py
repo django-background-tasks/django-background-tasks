@@ -895,3 +895,54 @@ class DatabaseOutageTestCase(TransactionTestCase):
         self.assertTrue(mock_logger.warning.called)
         self.assertFalse(mock_logger.error.called)
         self.assertFalse(mock_logger.critical.called)
+
+
+class RestartedTasksTestCase(TransactionTestCase):
+
+    def setUp(self):
+        @tasks.background()
+        def failed_task():
+            pass
+
+        self.orig_task = failed_task()
+        run_next_task()
+
+        repeat_until = timezone.now() + timedelta(weeks=1)
+        self.orig_repeated = failed_task(repeat=Task.HOURLY, repeat_until=repeat_until)
+        run_next_task()
+
+    def test_restarted(self):
+        finished_tasks = CompletedTask.objects.filter(
+            task_name=self.orig_task.task_name,
+            repeat=self.orig_task.repeat,
+        )
+        completed_task = finished_tasks.first()
+
+        available = Task.objects.find_available()
+        self.assertEqual(available.all().count(), 0)
+
+        completed_task.create_restarted_task()
+        available = Task.objects.find_available()
+        self.assertEqual(available.all().count(), 1)
+        run_next_task()
+
+        self.assertEqual(available.all().count(), 0)
+        self.assertEqual(finished_tasks.all().count(), 2)
+
+    def test_restarted_repeated(self):
+        finished_tasks = CompletedTask.objects.filter(
+        task_name=self.orig_repeated.task_name,
+        repeat=self.orig_repeated.repeat,
+        )
+        completed_task = finished_tasks.first()
+
+        available = Task.objects.find_available()
+        self.assertEqual(available.all().count(), 0)
+
+        completed_task.create_restarted_task()
+        available = Task.objects.find_available()
+        self.assertEqual(available.all().count(), 1)
+        run_next_task()
+
+        self.assertEqual(available.all().count(), 0)
+        self.assertEqual(finished_tasks.all().count(), 2)

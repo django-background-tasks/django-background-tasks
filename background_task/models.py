@@ -439,6 +439,22 @@ class CompletedTask(models.Model):
         return bool(self.last_error)
     has_error.boolean = True
 
+    def create_restarted_task(self):
+        restarted_task = Task(
+            task_name=self.task_name,
+            task_params=self.task_params,
+            task_hash=self.task_hash,
+            priority=self.priority,
+            run_at=timezone.now(),
+            queue=self.queue,
+            verbose_name=self.verbose_name,
+            creator=self.creator,
+            repeat=self.repeat,
+            repeat_until=self.repeat_until,
+        )
+        restarted_task.save()
+        return restarted_task
+
     def __str__(self):
         return u'{} - {}'.format(
             self.verbose_name or self.task_name,
