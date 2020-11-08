@@ -3,8 +3,8 @@ language: python
 
 # this list can be easily checked by running `tox -l`
 matrix:
-  include: 
-    
+  include:
+
     - { python: "2.7", env: TOX_ENV=py27-django18-async }
     - { python: "2.7", env: TOX_ENV=py27-django18-sync }
     - { python: "2.7", env: TOX_ENV=py27-django111-async }
@@ -34,6 +34,8 @@ matrix:
     - { python: "3.6", env: TOX_ENV=py36-django21-sync }
     - { python: "3.6", env: TOX_ENV=py36-django30-async }
     - { python: "3.6", env: TOX_ENV=py36-django30-sync }
+    - { python: "3.6", env: TOX_ENV=py36-django31-async }
+    - { python: "3.6", env: TOX_ENV=py36-django31-sync }
 
     # the dist: xenial, sudo: true settings are currently needed to test with python 3.7
     - { python: "3.7", env: TOX_ENV=py37-django20-async, dist: xenial, sudo: true }
@@ -42,11 +44,19 @@ matrix:
     - { python: "3.7", env: TOX_ENV=py37-django21-sync, dist: xenial, sudo: true }
     - { python: "3.7", env: TOX_ENV=py37-django30-async, dist: xenial, sudo: true }
     - { python: "3.7", env: TOX_ENV=py37-django30-sync,  dist: xenial, sudo: true }
- 
+    - { python: "3.7", env: TOX_ENV=py37-django31-async, dist: xenial, sudo: true }
+    - { python: "3.7", env: TOX_ENV=py37-django31-sync,  dist: xenial, sudo: true }
+
     # the dist: xenial, sudo: true settings are currently needed to test with python 3.8
     - { python: "3.8", env: TOX_ENV=py38-django30-async, dist: xenial, sudo: true }
     - { python: "3.8", env: TOX_ENV=py38-django30-sync,  dist: xenial, sudo: true }
-    
+    - { python: "3.8", env: TOX_ENV=py38-django31-async, dist: xenial, sudo: true }
+    - { python: "3.8", env: TOX_ENV=py38-django31-sync,  dist: xenial, sudo: true }
+
+    # the dist: xenial, sudo: true settings are currently needed to test with python 3.9
+    - { python: "3.9", env: TOX_ENV=py39-django31-async, dist: xenial, sudo: true }
+    - { python: "3.9", env: TOX_ENV=py39-django31-sync,  dist: xenial, sudo: true }
+
 install: pip install tox-travis coveralls
 
 script: tox -e $TOX_ENV
