@@ -3,11 +3,11 @@ import django.dispatch
 from django.db import connections
 from background_task.settings import app_settings
 
-task_created = django.dispatch.Signal(providing_args=['task'])
-task_error = django.dispatch.Signal(providing_args=['task'])
-task_rescheduled = django.dispatch.Signal(providing_args=['task'])
-task_failed = django.dispatch.Signal(providing_args=['task_id', 'completed_task'])
-task_successful = django.dispatch.Signal(providing_args=['task_id', 'completed_task'])
+task_created = django.dispatch.Signal()
+task_error = django.dispatch.Signal()
+task_rescheduled = django.dispatch.Signal()
+task_failed = django.dispatch.Signal()
+task_successful = django.dispatch.Signal()
 task_started = django.dispatch.Signal()
 task_finished = django.dispatch.Signal()
 
