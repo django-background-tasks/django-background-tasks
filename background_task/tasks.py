@@ -45,7 +45,9 @@ def bg_runner(proxy_task, task=None, *args, **kwargs):
         if task:
             # task done, so can delete it
             task.increment_attempts()
-            completed = task.create_completed_task()
+            task_completed = getattr(proxy_task, 'completed', False)
+            if task_completed:
+                completed = task.create_completed_task()
             signals.task_successful.send(sender=task.__class__, task_id=task.id, completed_task=completed)
             task.create_repetition()
             task.delete()
