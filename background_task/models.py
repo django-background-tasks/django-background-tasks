@@ -88,7 +88,7 @@ class TaskManager(models.Manager):
 
     def new_task(self, task_name, args=None, kwargs=None,
                  run_at=None, priority=0, queue=None, verbose_name=None,
-                 creator=None, repeat=None, repeat_until=None,
+                 creator=None, create_completed=True, repeat=None, repeat_until=None,
                  remove_existing_tasks=False):
         """
         If `remove_existing_tasks` is True, all unlocked tasks with the identical task hash will be removed.
@@ -111,6 +111,7 @@ class TaskManager(models.Manager):
                     queue=queue,
                     verbose_name=verbose_name,
                     creator=creator,
+                    create_completed=create_completed,
                     repeat=repeat or Task.NEVER,
                     repeat_until=repeat_until,
                     )
@@ -173,6 +174,9 @@ class Task(models.Model):
     failed_at = models.DateTimeField(db_index=True, null=True, blank=True)
     # details of the error that occurred
     last_error = models.TextField(blank=True)
+
+    #create a completed task entry when finished
+    create_completed = models.BooleanField(default=True)
 
     # details of who's trying to run the task at the moment
     locked_by = models.CharField(max_length=64, db_index=True,
@@ -267,24 +271,26 @@ class Task(models.Model):
         '''
         Returns a new CompletedTask instance with the same values
         '''
-        completed_task = CompletedTask(
-            task_name=self.task_name,
-            task_params=self.task_params,
-            task_hash=self.task_hash,
-            priority=self.priority,
-            run_at=timezone.now(),
-            queue=self.queue,
-            attempts=self.attempts,
-            failed_at=self.failed_at,
-            last_error=self.last_error,
-            locked_by=self.locked_by,
-            locked_at=self.locked_at,
-            verbose_name=self.verbose_name,
-            creator=self.creator,
-            repeat=self.repeat,
-            repeat_until=self.repeat_until,
-        )
-        completed_task.save()
+        if self.create_completed:
+            completed_task = CompletedTask(
+                task_name=self.task_name,
+                task_params=self.task_params,
+                task_hash=self.task_hash,
+                priority=self.priority,
+                run_at=timezone.now(),
+                queue=self.queue,
+                attempts=self.attempts,
+                failed_at=self.failed_at,
+                last_error=self.last_error,
+                locked_by=self.locked_by,
+                locked_at=self.locked_at,
+                verbose_name=self.verbose_name,
+                creator=self.creator,
+                repeat=self.repeat,
+                repeat_until=self.repeat_until,
+            )
+        else:
+            completed_task = None
         return completed_task
 
     def create_repetition(self):
@@ -312,6 +318,7 @@ class Task(models.Model):
             queue=self.queue,
             verbose_name=self.verbose_name,
             creator=self.creator,
+            create_completed=self.create_completed,
             repeat=self.repeat,
             repeat_until=self.repeat_until,
         )
