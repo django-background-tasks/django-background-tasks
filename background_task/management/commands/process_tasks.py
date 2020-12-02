@@ -105,7 +105,7 @@ class Command(BaseCommand):
             if not self._tasks.run_next_task(queue):
                 # there were no tasks in the queue, let's recover.
                 close_connection()
-                logger.debug('waiting for tasks')
+                #logger.debug('waiting for tasks')
                 time.sleep(sleep)
             else:
                 # there were some tasks to process, let's check if there is more work to do after a little break.
