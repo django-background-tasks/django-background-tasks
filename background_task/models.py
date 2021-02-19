@@ -152,15 +152,10 @@ class Task(models.Model):
     EVERY_2_WEEKS = 2 * WEEKLY
     EVERY_4_WEEKS = 4 * WEEKLY
     NEVER = 0
-    REPEAT_CHOICES = (
-        (HOURLY, 'hourly'),
-        (DAILY, 'daily'),
-        (WEEKLY, 'weekly'),
-        (EVERY_2_WEEKS, 'every 2 weeks'),
-        (EVERY_4_WEEKS, 'every 4 weeks'),
-        (NEVER, 'never'),
-    )
-    repeat = models.BigIntegerField(choices=REPEAT_CHOICES, default=NEVER)
+    REPEAT_HELP_TEXT = (
+        'minute = 60; hourly = %d; daily = %d; weekly = %d; 2 weeks = %d; 4 weeks = %d' %
+        (HOURLY, DAILY, WEEKLY, EVERY_2_WEEKS, EVERY_4_WEEKS))
+    repeat = models.BigIntegerField(default=NEVER, help_text=REPEAT_HELP_TEXT)
     repeat_until = models.DateTimeField(null=True, blank=True)
 
     # the "name" of the queue this is to be run on
@@ -389,7 +384,7 @@ class CompletedTask(models.Model):
     # when the task should be run
     run_at = models.DateTimeField(db_index=True)
 
-    repeat = models.BigIntegerField(choices=Task.REPEAT_CHOICES, default=Task.NEVER)
+    repeat = models.BigIntegerField(default=Task.NEVER, help_text=Task.REPEAT_HELP_TEXT)
     repeat_until = models.DateTimeField(null=True, blank=True)
 
     # the "name" of the queue this is to be run on
