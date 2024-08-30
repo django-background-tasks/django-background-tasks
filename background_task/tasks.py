@@ -45,6 +45,8 @@ def bg_runner(proxy_task, task=None, *args, **kwargs):
         if task:
             # task done, so can delete it
             task.increment_attempts()
+            #create_completed = getattr(proxy_task, 'create_completed', True)
+            #if create_completed:
             completed = task.create_completed_task()
             signals.task_successful.send(sender=task.__class__, task_id=task.id, completed_task=completed)
             task.create_repetition()
@@ -215,11 +217,11 @@ class DBTaskRunner(object):
 
     def schedule(self, task_name, args, kwargs, run_at=None,
                  priority=0, action=TaskSchedule.SCHEDULE, queue=None,
-                 verbose_name=None, creator=None,
+                 verbose_name=None, creator=None, create_completed=True,
                  repeat=None, repeat_until=None, remove_existing_tasks=False):
         '''Simply create a task object in the database'''
         task = Task.objects.new_task(task_name, args, kwargs, run_at, priority,
-                                     queue, verbose_name, creator, repeat,
+                                     queue, verbose_name, creator, create_completed, repeat,
                                      repeat_until, remove_existing_tasks)
         if action != TaskSchedule.SCHEDULE:
             task_hash = task.task_hash
@@ -285,12 +287,13 @@ class TaskProxy(object):
         queue = kwargs.pop('queue', self.queue)
         verbose_name = kwargs.pop('verbose_name', None)
         creator = kwargs.pop('creator', None)
+        create_completed = kwargs.pop('create_completed', True)
         repeat = kwargs.pop('repeat', None)
         repeat_until = kwargs.pop('repeat_until', None)
         remove_existing_tasks = kwargs.pop('remove_existing_tasks', self.remove_existing_tasks)
 
         return self.runner.schedule(self.name, args, kwargs, run_at, priority,
-                                    action, queue, verbose_name, creator,
+                                    action, queue, verbose_name, creator, create_completed,
                                     repeat, repeat_until,
                                     remove_existing_tasks)
 
