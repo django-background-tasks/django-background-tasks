@@ -346,10 +346,20 @@ class TestTaskModel(TransactionTestCase):
         task.save()
         locked_task = task.lock('mylock')
 
+        # find locked_task in locked, and not unlocked
+        now = timezone.now()
+        self.assertTrue(locked_task in Task.objects.locked(now))
+        self.assertFalse(locked_task in Task.objects.unlocked(now))
+ 
         # force expire the lock
         expire_by = timedelta(seconds=(app_settings.BACKGROUND_TASK_MAX_RUN_TIME + 2))
         locked_task.locked_at = locked_task.locked_at - expire_by
         locked_task.save()
+
+        # locked_task no longer in locked, and in unlocked
+        now = timezone.now()
+        self.assertFalse(locked_task in Task.objects.locked(now))
+        self.assertTrue(locked_task in Task.objects.unlocked(now))
 
         # now try to get the lock again
         self.assertFalse(task.lock('otherlock') is None)

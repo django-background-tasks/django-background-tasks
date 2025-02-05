@@ -76,7 +76,7 @@ class TaskManager(models.Manager):
         max_run_time = app_settings.BACKGROUND_TASK_MAX_RUN_TIME
         qs = self.get_queryset()
         expires_at = now - timedelta(seconds=max_run_time)
-        locked = Q(locked_by__isnull=False) | Q(locked_at__gt=expires_at)
+        locked = Q(locked_by__isnull=False) & Q(locked_at__gt=expires_at)
         return qs.filter(locked)
 
     def failed(self):
