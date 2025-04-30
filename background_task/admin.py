@@ -16,17 +16,43 @@ def dec_priority(modeladmin, request, queryset):
         obj.save()
 dec_priority.short_description = "priority -= 1"
 
-class TaskAdmin(admin.ModelAdmin):
-    display_filter = ['task_name']
-    search_fields = ['task_name', 'task_params', ]
-    list_display = ['task_name', 'task_params', 'run_at', 'priority', 'attempts', 'has_error', 'locked_by', 'locked_by_pid_running', ]
-    actions = [inc_priority, dec_priority]
 
-class CompletedTaskAdmin(admin.ModelAdmin):
-    display_filter = ['task_name']
-    search_fields = ['task_name', 'task_params', ]
-    list_display = ['task_name', 'task_params', 'run_at', 'priority', 'attempts', 'has_error', 'locked_by', 'locked_by_pid_running', ]
+class TaskMixin:
+    """Modify a few properties of background tasks displayed in admin."""
+
+    def no_errors(self, obj):
+        """Replace background_task's "has_error".
+
+        Make Django's red/green boolean icons less confusing
+        in the context of "there's an error during task run".
+        """
+        return not bool(obj.last_error)
+
+    no_errors.boolean = True
+
+
+class TaskAdmin(TaskMixin, admin.ModelAdmin):
+    date_hierarchy = 'run_at'
+    list_display = [
+        'run_at',
+        'task_name',
+        'task_params',
+        'creator',
+        'attempts',
+        'no_errors',
+        'locked_by',
+        'locked_by_pid_running',
+    ]
+    list_filter = (
+        'task_name',
+        'run_at',
+        'failed_at',
+        'locked_at',
+        'attempts',
+        'creator_content_type',
+    )
+    search_fields = ['task_name', 'task_params', 'last_error', 'verbose_name']
 
 
 admin.site.register(Task, TaskAdmin)
-admin.site.register(CompletedTask, CompletedTaskAdmin)
+admin.site.register(CompletedTask, TaskAdmin)
